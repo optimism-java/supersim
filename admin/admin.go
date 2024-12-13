@@ -223,3 +223,31 @@ func (m *RPCMethods) GetL2ToL2MessageByMsgHash(args *common.Hash) (*JSONL2ToL2Me
 		Message:     msg.Message,
 	}, nil
 }
+
+func (m *RPCMethods) GetDefaultAddrs(args *struct{}) ([]string, error) {
+	result := make([]string, 0)
+	for key, _ := range config.KeyMap {
+		result = append(result, key)
+	}
+	return result, nil
+}
+
+func (m *RPCMethods) GetChainInfo(args *struct{}) ([]ChainInfo, error) {
+	chains := make([]ChainInfo, 0)
+	chains = append(chains, ChainInfo{
+		Name:    m.networkConfig.L1Config.Name,
+		RPC:     fmt.Sprintf("%s:%d", m.networkConfig.L1Config.Host, m.networkConfig.L1Config.Port),
+		ChainID: m.networkConfig.L1Config.ChainID,
+		Type:    "L1",
+	})
+	for _, chain := range m.networkConfig.L2Configs {
+		fmt.Sprintln(chain.Port)
+		chains = append(chains, ChainInfo{
+			Name:    chain.Name,
+			RPC:     fmt.Sprintf("http://%s:%d", chain.Host, chain.Port),
+			ChainID: chain.ChainID,
+			Type:    "L2",
+		})
+	}
+	return chains, nil
+}

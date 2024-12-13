@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"strings"
@@ -24,6 +25,7 @@ var (
 		Mnemonic:       "test test test test test test test test test test test junk",
 		DerivationPath: accounts.DefaultRootDerivationPath,
 	}
+	KeyMap = make(map[string]*ecdsa.PrivateKey)
 )
 
 type ForkConfig struct {
@@ -156,6 +158,8 @@ func DefaultSecretsConfigAsString() string {
 
 	for i := range DefaultSecretsConfig.Accounts {
 		address, _ := keys.Address(devkeys.UserKey(i))
+		privateKey, _ := keys.Secret(devkeys.UserKey(i))
+		KeyMap[address.Hex()] = privateKey
 		fmt.Fprintf(&b, "(%d): %s\n", i, address.Hex())
 	}
 
