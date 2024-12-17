@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum-optimism/supersim/config"
 	"github.com/ethereum-optimism/supersim/interop"
+	"github.com/ethereum-optimism/supersim/opsimulator"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
@@ -27,6 +28,8 @@ type AdminServer struct {
 	networkConfig    *config.NetworkConfig
 	l2ToL2MsgIndexer *interop.L2ToL2MessageIndexer
 
+	l2OpSims map[uint64]*opsimulator.OpSimulator
+
 	port uint64
 }
 
@@ -34,6 +37,7 @@ type RPCMethods struct {
 	log              log.Logger
 	networkConfig    *config.NetworkConfig
 	l2ToL2MsgIndexer *interop.L2ToL2MessageIndexer
+	l2OpSims         map[uint64]*opsimulator.OpSimulator
 }
 
 type JSONRPCError struct {
@@ -58,9 +62,9 @@ func (err *JSONRPCError) ErrorCode() int {
 	return err.Code
 }
 
-func NewAdminServer(log log.Logger, port uint64, networkConfig *config.NetworkConfig, indexer *interop.L2ToL2MessageIndexer) *AdminServer {
+func NewAdminServer(log log.Logger, port uint64, networkConfig *config.NetworkConfig, indexer *interop.L2ToL2MessageIndexer, l2OpSims map[uint64]*opsimulator.OpSimulator) *AdminServer {
 
-	adminServer := &AdminServer{log: log, port: port, networkConfig: networkConfig}
+	adminServer := &AdminServer{log: log, port: port, networkConfig: networkConfig, l2OpSims: l2OpSims}
 
 	if networkConfig.InteropEnabled && indexer != nil {
 		adminServer.l2ToL2MsgIndexer = indexer
@@ -140,6 +144,7 @@ func (s *AdminServer) setupRouter() *gin.Engine {
 		log:              s.log,
 		networkConfig:    s.networkConfig,
 		l2ToL2MsgIndexer: s.l2ToL2MsgIndexer,
+		l2OpSims:         s.l2OpSims,
 	}
 
 	if err := rpcServer.RegisterName("admin", rpcMethods); err != nil {
@@ -240,12 +245,12 @@ func (m *RPCMethods) GetChainInfo(args *struct{}) ([]ChainInfo, error) {
 		ChainID: m.networkConfig.L1Config.ChainID,
 		Type:    "L1",
 	})
-	for _, chain := range m.networkConfig.L2Configs {
-		fmt.Sprintln(chain.Port)
+
+	for key, op := range m.l2OpSims {
 		chains = append(chains, ChainInfo{
-			Name:    chain.Name,
-			RPC:     fmt.Sprintf("http://%s:%d", chain.Host, chain.Port),
-			ChainID: chain.ChainID,
+			Name:    op.Config().Name,
+			RPC:     op.Endpoint(),
+			ChainID: key,
 			Type:    "L2",
 		})
 	}
